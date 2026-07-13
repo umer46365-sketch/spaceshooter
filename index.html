@@ -1,239 +1,780 @@
-import pygame
-import random
-import math
-
-# Initialize Pygame
-pygame.init()
-
-WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Space Shooter: Boss & Particles Edition")
-
-clock = pygame.time.Clock()
-
-# Colors
-WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-BLACK = (0, 0, 0)
-GREEN = (0, 255, 0)
-GRAY = (150, 150, 150)
-YELLOW = (255, 255, 0)
-
-BULLET_COLORS = [(0, 255, 255), (255, 255, 0), (255, 0, 255), (255, 165, 0), (0, 128, 255)]
-
-# Game Variables
-player = pygame.Rect(370, 520, 60, 60)
-player_speed = 5
-
-bullets = []
-enemies = []
-particles = []  # Explosion animation ke liye list
-
-# Gameplay Stats
-score = 0
-level = 1
-enemy_timer = 0
-enemy_speed = 2
-score_to_next_level = 10
-
-# Boss Variables
-boss = None
-boss_health = 0
-boss_max_health = 0
-boss_speed = 2
-boss_direction = 1
-boss_active = False
-
-font = pygame.font.SysFont(None, 36)
-game_over_font = pygame.font.SysFont(None, 72)
-
-running = True
-game_over = False
-
-# --- KHOOBSURAT ANIMATION FUNCTION ---
-def create_explosion(x, y):
-    """Jab boss marega, toh rang-birange particles charo taraf phelein ge"""
-    for _ in range(100):  # 100 colorful particles banenge
-        angle = random.uniform(0, 2 * math.pi)
-        speed = random.uniform(2, 7)
-        particle = {
-            "x": x,
-            "y": y,
-            "vx": math.cos(angle) * speed,
-            "vy": math.sin(angle) * speed,
-            "radius": random.randint(3, 8),
-            "color": random.choice(BULLET_COLORS),
-            "lifetime": random.randint(30, 60)  # Kitni der tak particle dikhega
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter: Ultimate Challenge</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        particles.append(particle)
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #020208;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: radial-gradient(circle, #090d16 0%, #010206 100%);
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #fff;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            pointer-events: none;
+            user-select: none;
+            display: flex;
+            gap: 30px;
+            width: 100%;
+            justify-content: center;
+            background: rgba(0,0,0,0.5);
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+        }
+        .ui-stat span {
+            color: #00f0ff;
+        }
+        #lives-display {
+            color: #ff2d55 !important;
+            letter-spacing: 2px;
+        }
+        #boss-ui {
+            position: absolute;
+            top: 75px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 300px;
+            display: none;
+            text-align: center;
+        }
+        #boss-label {
+            color: #ff2d55;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        #boss-bar-bg {
+            width: 100%;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #ff2d55;
+        }
+        #boss-bar-fill {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #ff2d55, #ff7b00);
+            transition: width 0.05s ease;
+        }
+        #controls-hint {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 13px;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
 
-# --- RESTART FUNCTION ---
-def restart_game():
-    global game_over, score, level, enemy_speed, score_to_next_level, enemy_timer
-    global boss, boss_active, bullets, enemies, particles
-    game_over = False
-    score = 0
-    level = 1
-    enemy_speed = 2
-    score_to_next_level = 10
-    enemy_timer = 0
-    boss = None
-    boss_active = False
-    bullets.clear()
-    enemies.clear()
-    particles.clear()
-    player.x = 370
+    <div id="ui-layer">
+        <div class="ui-stat">Score: <span id="score">0</span></div>
+        <div class="ui-stat">Level: <span id="level">1/10</span></div>
+        <div class="ui-stat">Lives: <span id="lives-display">❤❤❤</span></div>
+        <div class="ui-stat">Status: <span id="kills-left">15</span></div>
+    </div>
 
-# --- MAIN LOOP ---
-while running:
-    clock.tick(60)
+    <div id="boss-ui">
+        <div id="boss-label">Level 1 Boss Alert</div>
+        <div id="boss-bar-bg"><div id="boss-bar-fill"></div></div>
+    </div>
 
-    # 1. Events
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    <div id="controls-hint">
+        Move: W, A, S, D / Arrow Keys | Shoot: SPACEBAR<br>
+        Catch the glowing <span style="color:#ffaa00; font-weight:bold;">[P]</span> item for Triple Shot Power!
+    </div>
 
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and not game_over:
-                b_color = random.choice(BULLET_COLORS)
-                # Triple shot
-                bullets.append({"rect": pygame.Rect(player.centerx - 3, player.top, 6, 15), "speed_x": 0, "color": b_color})
-                bullets.append({"rect": pygame.Rect(player.centerx - 15, player.top, 6, 15), "speed_x": -2, "color": b_color})
-                bullets.append({"rect": pygame.Rect(player.centerx + 9, player.top, 6, 15), "speed_x": 2, "color": b_color})
-            
-            if game_over and event.key == pygame.K_r:
-                restart_game()
+    <canvas id="gameCanvas"></canvas>
 
-    # 2. Game Logic
-    if not game_over:
-        # Player Move
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT] and player.left > 0: player.x -= player_speed
-        if keys[pygame.K_RIGHT] and player.right < WIDTH: player.x += player_speed
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const scoreElement = document.getElementById('score');
+        const levelElement = document.getElementById('level');
+        const killsLeftElement = document.getElementById('kills-left');
+        const livesDisplay = document.getElementById('lives-display');
+        const bossUi = document.getElementById('boss-ui');
+        const bossBarFill = document.getElementById('boss-bar-fill');
+        const bossLabel = document.getElementById('boss-label');
 
-        # Level Up & Boss Spawn Logic
-        if score >= score_to_next_level and not boss_active:
-            boss_active = True
-            boss_max_health = 5 + (level * 5)  # Har level mein boss ki health barhegi
-            boss_health = boss_max_health
-            boss = pygame.Rect(WIDTH // 2 - 60, -100, 120, 80) # Bada Boss spawn hua
-            enemies.clear() # Boss aane par aam dushman saaf
+        function resizeCanvas() {
+            canvas.width = Math.min(window.innerWidth, 800);
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-        # Move Bullets
-        for bullet in bullets[:]:
-            bullet["rect"].y -= 10
-            bullet["rect"].x += bullet["speed_x"]
-            if bullet["rect"].bottom < 0 or bullet["rect"].right < 0 or bullet["rect"].left > WIDTH:
-                bullets.remove(bullet)
+        // Core Game States
+        let gameActive = true;
+        let score = 0;
+        let currentLevel = 1;
+        const maxLevels = 10;
+        
+        let killsInThisLevel = 0;
+        let killsRequiredForBoss = 15; 
+        let bossActive = false;
+        let bossObject = null;
+        
+        // Effects & Balance
+        let screenShake = 0;
+        let slowMoFactor = 1; 
+        let levelTransitionActive = false;
+        let levelTransitionTimer = 0;
 
-        # Move Particles (Animation Update)
-        for p in particles[:]:
-            p["x"] += p["vx"]
-            p["y"] += p["vy"]
-            p["lifetime"] -= 1
-            if p["lifetime"] <= 0:
-                particles.remove(p)
+        // Keyboard Setup (8-Way + Space)
+        const keys = {
+            ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false,
+            KeyA: false, KeyD: false, KeyW: false, KeyS: false,
+            Space: false
+        };
 
-        # Enemy Spawning (Sirf tab jab boss na ho)
-        if not boss_active:
-            enemy_timer += 1
-            if enemy_timer > max(15, 35 - level * 2): # Level barhne se dushman jaldi aayenge
-                enemy_timer = 0
-                x = random.randint(0, WIDTH - 40)
-                enemies.append(pygame.Rect(x, -40, 40, 40))
+        window.addEventListener('keydown', (e) => {
+            if (e.code in keys) {
+                keys[e.code] = true;
+                if(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+                    e.preventDefault();
+                }
+            }
+            if (!gameActive && (e.code === 'Space' || e.code === 'Enter')) resetGame();
+        });
 
-            # Move Enemies
-            for enemy in enemies[:]:
-                enemy.y += enemy_speed
-                if enemy.top > HEIGHT: enemies.remove(enemy)
-                if enemy.colliderect(player): game_over = True
-        else:
-            # --- BOSS LOGIC ---
-            # Boss entrance animation
-            if boss.y < 50:
-                boss.y += 2
-            else:
-                # Boss left-right movement
-                boss.x += boss_speed * boss_direction
-                if boss.right >= WIDTH or boss.left <= 0:
-                    boss_direction *= -1
+        window.addEventListener('keyup', (e) => {
+            if (e.code in keys) keys[e.code] = false;
+        });
 
-            if boss.colliderect(player):
-                game_over = True
+        // Lists
+        let lasers = [];
+        let bossLasers = [];
+        let enemies = [];
+        let particles = [];
+        let powerups = [];
+        let stars = [];
+        let enemySpawnTimer = 0;
 
-        # Bullet Collisions
-        for bullet in bullets[:]:
-            # Check collision with Normal Enemies
-            if not boss_active:
-                for enemy in enemies[:]:
-                    if bullet["rect"].colliderect(enemy):
-                        if bullet in bullets: bullets.remove(bullet)
-                        if enemy in enemies: enemies.remove(enemy)
-                        score += 1
-                        break
-            else:
-                # Check collision with Boss
-                if boss and bullet["rect"].colliderect(boss):
-                    if bullet in bullets: bullets.remove(bullet)
-                    boss_health -= 1
+        // Background Stars Setup
+        for (let i = 0; i < 80; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: Math.random() * 0.8 + 0.2 // Slower stars speed
+            });
+        }
+
+        // Player Configurations
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 120,
+            width: 36,
+            height: 36,
+            speed: 5.5, // Smooth balanced speed
+            color: '#00f0ff',
+            shootCooldown: 0,
+            lives: 3,
+            powerUpTimer: 0, 
+            update() {
+                // 8-way directional movement
+                if (keys.ArrowLeft || keys.KeyA) this.x -= this.speed;
+                if (keys.ArrowRight || keys.KeyD) this.x += this.speed;
+                if (keys.ArrowUp || keys.KeyW) this.y -= this.speed;
+                if (keys.ArrowDown || keys.KeyS) this.y += this.speed;
+
+                // Screen boundaries restriction
+                if (this.x < this.width / 2) this.x = this.width / 2;
+                if (this.x > canvas.width - this.width / 2) this.x = canvas.width - this.width / 2;
+                if (this.y < this.height / 2) this.y = this.height / 2;
+                if (this.y > canvas.height - this.height / 2) this.y = canvas.height - this.height / 2;
+
+                if (this.powerUpTimer > 0) this.powerUpTimer--;
+
+                // Manual Fire with Spacebar
+                if (keys.Space && this.shootCooldown <= 0 && !levelTransitionActive) {
+                    if (this.powerUpTimer > 0) {
+                        // Triple Shot Animation
+                        lasers.push(new Laser(this.x, this.y - 20, 0));
+                        lasers.push(new Laser(this.x, this.y - 20, -2.5));
+                        lasers.push(new Laser(this.x, this.y - 20, 2.5));
+                    } else {
+                        // Single Shot Default
+                        lasers.push(new Laser(this.x, this.y - 20, 0));
+                    }
+                    this.shootCooldown = 16; // Shooting delay rate
+                } else {
+                    this.shootCooldown--;
+                }
+            },
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = this.powerUpTimer > 0 ? '#ffaa00' : this.color;
+
+                ctx.fillStyle = this.powerUpTimer > 0 ? '#ffaa00' : this.color;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height / 2);
+                ctx.lineTo(-this.width / 2, this.height / 2);
+                ctx.lineTo(this.width / 2, this.height / 2);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#ffaa00';
+                ctx.beginPath();
+                ctx.moveTo(-6, this.height/2);
+                ctx.lineTo(0, (this.height/2) + (Math.random() * 10 + 3));
+                ctx.lineTo(6, this.height/2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        };
+
+        // Player Laser Class
+        class Laser {
+            constructor(x, y, angleX) {
+                this.x = x;
+                this.y = y;
+                this.width = 4;
+                this.height = 14;
+                this.speedY = 10;
+                this.xAngle = angleX;
+            }
+            update() {
+                this.y -= this.speedY * slowMoFactor;
+                this.x += this.xAngle * slowMoFactor;
+            }
+            draw() {
+                ctx.save();
+                ctx.fillStyle = player.powerUpTimer > 0 ? '#ffaa00' : '#00f0ff';
+                ctx.fillRect(this.x - this.width/2, this.y, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        // Boss Laser Class
+        class BossLaser {
+            constructor(x, y, speedX = 0) {
+                this.x = x;
+                this.y = y;
+                this.width = 5;
+                this.height = 14;
+                this.speedY = 4.5; // Balanced speed
+                this.speedX = speedX;
+            }
+            update() {
+                this.y += this.speedY * slowMoFactor;
+                this.x += this.speedX * slowMoFactor;
+            }
+            draw() {
+                ctx.save();
+                ctx.fillStyle = '#ff2d55';
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = '#ff2d55';
+                ctx.fillRect(this.x - this.width/2, this.y, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        // Power-Up Item [P] Class
+        class PowerUp {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 20;
+                this.height = 20;
+                this.speed = 1.8;
+            }
+            update() {
+                this.y += this.speed * slowMoFactor;
+            }
+            draw() {
+                ctx.save();
+                ctx.fillStyle = '#ffaa00';
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#ffaa00';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('P', this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        // Normal Enemy (Slower and More Balanced Scaling)
+        class Enemy {
+            constructor() {
+                this.width = Math.random() * 15 + 20;
+                this.height = this.width;
+                this.x = Math.random() * (canvas.width - this.width) + this.width/2;
+                this.y = -this.height;
+                this.speed = Math.random() * 0.8 + 1.2 + (currentLevel * 0.25); // Controlled speed
+                this.color = `hsl(${(currentLevel * 35) % 360}, 90%, 55%)`; 
+            }
+            update() {
+                this.y += this.speed * slowMoFactor;
+            }
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - this.height/2);
+                ctx.lineTo(this.x + this.width/2, this.y);
+                ctx.lineTo(this.x, this.y + this.height/2);
+                ctx.lineTo(this.x - this.width/2, this.y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Boss Class with Counter-Fire Attack Mode
+        class Boss {
+            constructor(level) {
+                this.level = level;
+                this.width = 90 + (level * 8); 
+                this.height = 55 + (level * 4);
+                this.x = canvas.width / 2;
+                this.y = -this.height;
+                this.targetY = 110; 
+                this.introMode = true;
+                this.maxHp = 20 + (level * 20); 
+                this.hp = this.maxHp;
+                this.speedX = 1.2 + (level * 0.2); 
+                this.direction = 1;
+                this.hue = (level * 70) % 360;
+                this.fireTimer = 0;
+            }
+            update() {
+                if (this.introMode) {
+                    this.y += 1.2 * slowMoFactor;
+                    if (this.y >= this.targetY) this.introMode = false;
+                } else {
+                    this.x += this.speedX * this.direction * slowMoFactor;
+                    if (this.x + this.width/2 >= canvas.width || this.x - this.width/2 <= 0) {
+                        this.direction *= -1;
+                    }
+
+                    // Boss fires back mechanism
+                    this.fireTimer++;
+                    let attackRate = Math.max(30, 75 - (this.level * 4));
+                    if (this.fireTimer >= attackRate) {
+                        this.fireTimer = 0;
+                        if (this.level >= 4) {
+                            // Multiple streams on higher levels
+                            bossLasers.push(new BossLaser(this.x - 20, this.y + this.height/2));
+                            bossLasers.push(new BossLaser(this.x + 20, this.y + this.height/2));
+                        } else {
+                            bossLasers.push(new BossLaser(this.x, this.y + this.height/2));
+                        }
+                    }
+                }
+            }
+            draw() {
+                ctx.save();
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 41%)`;
+
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.height/2); 
+                ctx.lineTo(this.x + this.width/2, this.y - this.height/4); 
+                ctx.lineTo(this.x + this.width/3, this.y - this.height/2); 
+                ctx.lineTo(this.x - this.width/3, this.y - this.height/2); 
+                ctx.lineTo(this.x - this.width/2, this.y - this.height/4); 
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Particles System
+        class Particle {
+            constructor(x, y, color, speedMultiplier = 1) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.size = Math.random() * 3.5 + 1;
+                this.speedX = (Math.random() - 0.5) * 7 * speedMultiplier;
+                this.speedY = (Math.random() - 0.5) * 7 * speedMultiplier;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.015 + 0.01;
+            }
+            update() {
+                this.x += this.speedX * slowMoFactor;
+                this.y += this.speedY * slowMoFactor;
+                this.alpha -= this.decay * (slowMoFactor === 1 ? 1 : 0.4);
+            }
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function triggerExplosion(x, y, color, count = 12, speed = 1) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color, speed));
+            }
+        }
+
+        function triggerBossDeathAnimation(boss) {
+            screenShake = 25; 
+            slowMoFactor = 0.15; 
+            bossUi.style.display = 'none';
+
+            let explosionRepetitions = 0;
+            let interval = setInterval(() => {
+                if (!gameActive) { clearInterval(interval); return; }
+                
+                let rx = boss.x + (Math.random() - 0.5) * boss.width;
+                let ry = boss.y + (Math.random() - 0.5) * boss.height;
+                
+                triggerExplosion(rx, ry, `hsl(${boss.hue}, 100%, 60%)`, 20, 2);
+                triggerExplosion(rx, ry, '#ffffff', 8, 1.5);
+                screenShake = 12;
+
+                explosionRepetitions++;
+                if (explosionRepetitions > 8) {
+                    clearInterval(interval);
                     
-                    # Agar Boss Mar Gaya!
-                    if boss_health <= 0:
-                        create_explosion(boss.centerx, boss.centery) # Khoobsurat Dhamaka!
-                        score += 10
-                        level += 1
-                        score_to_next_level = score + 10 + (level * 5)
-                        enemy_speed += 0.5 # Agla level mushkil karne ke liye
-                        boss_active = False
-                        boss = None
-                    break
+                    triggerExplosion(boss.x, boss.y, '#ffffff', 70, 3.5);
+                    triggerExplosion(boss.x, boss.y, '#ffaa00', 40, 2.5);
+                    
+                    slowMoFactor = 1;
+                    bossActive = false;
+                    bossObject = null;
+                    
+                    if (currentLevel < maxLevels) {
+                        goToNextLevel();
+                    } else {
+                        triggerVictory();
+                    }
+                }
+            }, 120); 
+        }
 
-    # 3. Drawing
-    screen.fill(BLACK)
+        function goToNextLevel() {
+            currentLevel++;
+            killsInThisLevel = 0;
+            killsRequiredForBoss = 15 + (currentLevel * 3); 
+            levelTransitionActive = true;
+            levelTransitionTimer = 120; 
+            enemies = [];
+            lasers = [];
+            bossLasers = [];
+            powerups = [];
+        }
 
-    # Particles animation background mein chalegi
-    for p in particles:
-        pygame.draw.circle(screen, p["color"], (int(p["x"]), int(p["y"])), p["radius"])
+        function triggerVictory() {
+            gameActive = false;
+            setTimeout(() => {
+                ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#00f0ff';
+                ctx.font = 'bold 36px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('GALAXY SAVED!', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px sans-serif';
+                ctx.fillText(`Final Score: ${score} | All 10 Bosses Cleared!`, canvas.width / 2, canvas.height / 2 + 30);
+                ctx.font = '14px sans-serif';
+                ctx.fillText('Press Enter or Space to play again', canvas.width / 2, canvas.height / 2 + 80);
+            }, 500);
+        }
 
-    if not game_over:
-        # Draw Player
-        pygame.draw.rect(screen, GREEN, player)
-        
-        # Draw Bullets
-        for bullet in bullets:
-            pygame.draw.rect(screen, bullet["color"], bullet["rect"])
+        function checkCollision(obj1, obj2) {
+            return (
+                obj1.x - obj1.width/2 < obj2.x + obj2.width/2 &&
+                obj1.x + obj1.width/2 > obj2.x - obj2.width/2 &&
+                obj1.y - obj1.height/2 < obj2.y + obj2.height/2 &&
+                obj1.y + obj1.height/2 > obj2.y - obj2.height/2
+            );
+        }
+
+        function handlePlayerDamage() {
+            player.lives--;
+            screenShake = 20;
+            triggerExplosion(player.x, player.y, '#ff0055', 20, 1.5);
             
-        # Draw Enemies
-        if not boss_active:
-            for enemy in enemies:
-                pygame.draw.rect(screen, RED, enemy)
-        else:
-            # Draw Boss
-            if boss:
-                pygame.draw.rect(screen, RED, boss)
-                # Boss Health Bar
-                health_bar_width = 120
-                current_health_bar = (boss_health / boss_max_health) * health_bar_width
-                pygame.draw.rect(screen, GRAY, (boss.x, boss.y - 15, health_bar_width, 8))
-                pygame.draw.rect(screen, YELLOW, (boss.x, boss.y - 15, current_health_bar, 8))
+            let heartString = "";
+            for(let i=0; i<player.lives; i++) heartString += "❤";
+            livesDisplay.innerText = heartString || "NONE";
 
-        # UI Text (Score & Level)
-        ui_text = font.render(f"Score: {score}  |  Level: {level}", True, WHITE)
-        screen.blit(ui_text, (10, 10))
-        
-        if boss_active:
-            boss_text = font.render("BOSS FIGHT!", True, YELLOW)
-            screen.blit(boss_text, (WIDTH // 2 - boss_text.get_width() // 2, 10))
-    else:
-        # Game Over Screen
-        go_text = game_over_font.render("GAME OVER", True, RED)
-        score_text = font.render(f"Final Score: {score}  |  Reached Level: {level}", True, WHITE)
-        restart_text = font.render("Press 'R' to Restart", True, GRAY)
+            if (player.lives <= 0) {
+                gameActive = false;
+            }
+        }
 
-        screen.blit(go_text, (WIDTH // 2 - go_text.get_width() // 2, HEIGHT // 3))
-        screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, HEIGHT // 2))
-        screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 1.5))
+        function resetGame() {
+            score = 0;
+            currentLevel = 1;
+            killsInThisLevel = 0;
+            killsRequiredForBoss = 15;
+            bossActive = false;
+            bossObject = null;
+            slowMoFactor = 1;
+            levelTransitionActive = false;
+            lasers = [];
+            bossLasers = [];
+            enemies = [];
+            particles = [];
+            powerups = [];
+            
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 120;
+            player.lives = 3;
+            player.powerUpTimer = 0;
+            
+            scoreElement.innerText = score;
+            levelElement.innerText = `${currentLevel}/${maxLevels}`;
+            killsLeftElement.innerText = `${killsRequiredForBoss} Left`;
+            livesDisplay.innerText = "❤❤❤";
+            bossUi.style.display = 'none';
+            
+            gameActive = true;
+            animate();
+        }
 
-    pygame.display.flip()
+        // MASTER GAME LOOP
+        function animate() {
+            if (!gameActive) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#ff2d55';
+                ctx.font = 'bold 40px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillStyle = '#fff';
+                ctx.font = '18px sans-serif';
+                ctx.fillText('Press Space / Enter to Try Again', canvas.width / 2, canvas.height / 2 + 30);
+                return;
+            }
 
-pygame.quit()
+            requestAnimationFrame(animate);
+
+            ctx.save();
+            if (screenShake > 0) {
+                let dx = (Math.random() - 0.5) * screenShake;
+                let dy = (Math.random() - 0.5) * screenShake;
+                ctx.translate(dx, dy);
+                screenShake *= 0.85;
+                if (screenShake < 0.5) screenShake = 0;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background Stars Drawing
+            stars.forEach(star => {
+                star.y += star.speed * slowMoFactor;
+                if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(star.x, star.y, star.size, star.size);
+            });
+
+            levelElement.innerText = `${currentLevel}/${maxLevels}`;
+            if (!bossActive) {
+                let left = killsRequiredForBoss - killsInThisLevel;
+                killsLeftElement.innerText = `${left} Left`;
+            } else {
+                killsLeftElement.innerText = "BOSS FIGHT";
+            }
+
+            if (levelTransitionActive) {
+                levelTransitionTimer--;
+                ctx.fillStyle = 'rgba(0, 240, 255, 0.9)';
+                ctx.font = 'italic bold 32px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(`LEVEL ${currentLevel}`, canvas.width/2, canvas.height/2);
+                if (levelTransitionTimer <= 0) levelTransitionActive = false;
+            }
+
+            player.update();
+            player.draw();
+
+            // Player Lasers Physics
+            for (let l = lasers.length - 1; l >= 0; l--) {
+                lasers[l].update();
+                lasers[l].draw();
+                if (lasers[l].y < 0 || lasers[l].x < 0 || lasers[l].x > canvas.width) {
+                    lasers.splice(l, 1);
+                }
+            }
+
+            // Boss Lasers Physics
+            const pRect = { x: player.x, y: player.y, width: player.width, height: player.height };
+            for (let bl = bossLasers.length - 1; bl >= 0; bl--) {
+                bossLasers[bl].update();
+                bossLasers[bl].draw();
+
+                if (checkCollision(pRect, bossLasers[bl])) {
+                    bossLasers.splice(bl, 1);
+                    handlePlayerDamage();
+                    continue;
+                }
+                
+                if (bossLasers[bl] && bossLasers[bl].y > canvas.height) {
+                    bossLasers.splice(bl, 1);
+                }
+            }
+
+            // Powerups Mechanics
+            for (let pu = powerups.length - 1; pu >= 0; pu--) {
+                powerups[pu].update();
+                powerups[pu].draw();
+
+                if (checkCollision(pRect, powerups[pu])) {
+                    powerups.splice(pu, 1);
+                    player.powerUpTimer = 450; // Give triple shot power for some duration
+                    score += 50;
+                    scoreElement.innerText = score;
+                    continue;
+                }
+
+                if (powerups[pu].y > canvas.height) {
+                    powerups.splice(pu, 1);
+                }
+            }
+
+            // Enemy Spawning Loop
+            if (!bossActive && !levelTransitionActive) {
+                if (killsInThisLevel >= killsRequiredForBoss) {
+                    bossActive = true;
+                    bossObject = new Boss(currentLevel);
+                    bossUi.style.display = 'block';
+                    bossLabel.innerText = `LEVEL ${currentLevel} BOSS`;
+                    bossBarFill.style.width = '100%';
+                } else {
+                    enemySpawnTimer++;
+                    let targetInterval = Math.max(25, 65 - (currentLevel * 3.5)); 
+                    if (enemySpawnTimer >= targetInterval) {
+                        enemies.push(new Enemy());
+                        enemySpawnTimer = 0;
+                    }
+                }
+            }
+
+            // Normal Enemy Mechanics
+            for (let e = enemies.length - 1; e >= 0; e--) {
+                enemies[e].update();
+                enemies[e].draw();
+
+                if (checkCollision(pRect, enemies[e])) {
+                    triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 12);
+                    enemies.splice(e, 1);
+                    handlePlayerDamage();
+                    continue;
+                }
+
+                for (let l = lasers.length - 1; l >= 0; l--) {
+                    if (enemies[e] && checkCollision(lasers[l], enemies[e])) {
+                        triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 10);
+                        
+                        // 22% Chance to drop the 'P' item
+                        if (Math.random() < 0.22) { 
+                            powerups.push(new PowerUp(enemies[e].x, enemies[e].y));
+                        }
+
+                        enemies.splice(e, 1);
+                        lasers.splice(l, 1);
+                        score += 10;
+                        killsInThisLevel++;
+                        scoreElement.innerText = score;
+                        break;
+                    }
+                }
+
+                if (enemies[e] && enemies[e].y > canvas.height) {
+                    enemies.splice(e, 1);
+                }
+            }
+
+            // Boss Mechanics
+            if (bossActive && bossObject) {
+                bossObject.update();
+                bossObject.draw();
+
+                if (!bossObject.introMode && checkCollision(pRect, bossObject)) {
+                    handlePlayerDamage();
+                }
+
+                for (let l = lasers.length - 1; l >= 0; l--) {
+                    if (checkCollision(lasers[l], bossObject)) {
+                        lasers.splice(l, 1);
+                        
+                        if (!bossObject.introMode && slowMoFactor === 1) { 
+                            bossObject.hp--;
+                            score += 5;
+                            scoreElement.innerText = score;
+                            screenShake = 3; 
+                            
+                            triggerExplosion(lasers[l] ? lasers[l].x : bossObject.x, bossObject.y + bossObject.height/2, '#ffffff', 3);
+
+                            let hpPercent = (bossObject.hp / bossObject.maxHp) * 100;
+                            bossBarFill.style.width = `${hpPercent}%`;
+
+                            if (bossObject.hp <= 0) {
+                                triggerBossDeathAnimation(bossObject);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Explosion Particles
+            for (let p = particles.length - 1; p >= 0; p--) {
+                particles[p].update();
+                particles[p].draw();
+                if (particles[p].alpha <= 0) particles.splice(p, 1);
+            }
+
+            ctx.restore(); 
+        }
+
+        animate();
+    </script>
+</body>
+</html>
