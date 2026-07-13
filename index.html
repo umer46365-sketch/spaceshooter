@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Space Shooter: Ultimate Challenge</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Shooter: Mobile Touch Edition</title>
     <style>
         * {
             margin: 0;
@@ -16,31 +16,38 @@
             overflow: hidden;
             background-color: #020208;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Mobile par double tap zoom block karne ke liye */
+            user-select: none;
+            -webkit-user-select: none;
         }
         canvas {
             display: block;
             margin: 0 auto;
             background: radial-gradient(circle, #090d16 0%, #010206 100%);
             box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            max-width: 100%;
+            max-height: 100%;
         }
         #ui-layer {
             position: absolute;
-            top: 20px;
+            top: 10px;
             left: 50%;
             transform: translateX(-50%);
             color: #fff;
-            font-size: 18px;
+            font-size: 15px;
             font-weight: bold;
             text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
             pointer-events: none;
-            user-select: none;
             display: flex;
-            gap: 30px;
-            width: 100%;
-            justify-content: center;
-            background: rgba(0,0,0,0.5);
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            gap: 15px;
+            width: 95%;
+            max-width: 600px;
+            justify-content: space-between;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            z-index: 10;
         }
         .ui-stat span {
             color: #00f0ff;
@@ -51,17 +58,19 @@
         }
         #boss-ui {
             position: absolute;
-            top: 75px;
+            top: 65px;
             left: 50%;
             transform: translateX(-50%);
-            width: 300px;
+            width: 90%;
+            max-width: 300px;
             display: none;
             text-align: center;
+            z-index: 10;
         }
         #boss-label {
             color: #ff2d55;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 11px;
             margin-bottom: 5px;
             text-transform: uppercase;
             letter-spacing: 2px;
@@ -80,16 +89,81 @@
             background: linear-gradient(90deg, #ff2d55, #ff7b00);
             transition: width 0.05s ease;
         }
-        #controls-hint {
+
+        /* --- TOUCH CONTROLS STYLING (MOBILE ONLY) --- */
+        #touch-controls {
             position: absolute;
             bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: rgba(255, 255, 255, 0.4);
-            font-size: 13px;
+            left: 0;
+            width: 100%;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            z-index: 20;
             pointer-events: none;
-            text-align: center;
-            line-height: 1.5;
+        }
+        .touch-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 2px solid rgba(0, 240, 255, 0.4);
+            color: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            user-select: none;
+            -webkit-user-select: none;
+            pointer-events: auto;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        .touch-btn:active {
+            background: rgba(0, 240, 255, 0.35);
+            border-color: #00f0ff;
+            scale: 0.95;
+        }
+        
+        /* D-Pad (Left Side Movement) */
+        #dpad {
+            position: relative;
+            width: 140px;
+            height: 140px;
+        }
+        .dpad-btn {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            font-size: 18px;
+            border-radius: 8px;
+        }
+        #btn-up    { top: 0; left: 48px; }
+        #btn-down  { bottom: 0; left: 48px; }
+        #btn-left  { top: 48px; left: 0; }
+        #btn-right { top: 48px; right: 0; }
+
+        /* Action Button (Right Side Shoot) */
+        #btn-shoot {
+            width: 76px;
+            height: 76px;
+            font-size: 14px;
+            background: rgba(255, 45, 85, 0.2);
+            border: 2px solid rgba(255, 45, 85, 0.6);
+            box-shadow: 0 0 10px rgba(255, 45, 85, 0.3);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            margin-right: 10px;
+        }
+        #btn-shoot:active {
+            background: rgba(255, 45, 85, 0.6);
+            border-color: #ff2d55;
+        }
+
+        /* Responsive Visibility Hiding for Desktops */
+        @media (min-width: 769px) {
+            #touch-controls {
+                display: none; /* Hidden on Desktop PC */
+            }
         }
     </style>
 </head>
@@ -97,9 +171,9 @@
 
     <div id="ui-layer">
         <div class="ui-stat">Score: <span id="score">0</span></div>
-        <div class="ui-stat">Level: <span id="level">1/10</span></div>
+        <div class="ui-stat">Lvl: <span id="level">1/10</span></div>
         <div class="ui-stat">Lives: <span id="lives-display">❤❤❤</span></div>
-        <div class="ui-stat">Status: <span id="kills-left">15</span></div>
+        <div class="ui-stat"><span id="kills-left">15 Left</span></div>
     </div>
 
     <div id="boss-ui">
@@ -107,9 +181,14 @@
         <div id="boss-bar-bg"><div id="boss-bar-fill"></div></div>
     </div>
 
-    <div id="controls-hint">
-        Move: W, A, S, D / Arrow Keys | Shoot: SPACEBAR<br>
-        Catch the glowing <span style="color:#ffaa00; font-weight:bold;">[P]</span> item for Triple Shot Power!
+    <div id="touch-controls">
+        <div id="dpad">
+            <div class="touch-btn dpad-btn" id="btn-up">▲</div>
+            <div class="touch-btn dpad-btn" id="btn-left">◀</div>
+            <div class="touch-btn dpad-btn" id="btn-right">▶</div>
+            <div class="touch-btn dpad-btn" id="btn-down">▼</div>
+        </div>
+        <div class="touch-btn" id="btn-shoot">Fire</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -127,13 +206,15 @@
         const bossLabel = document.getElementById('boss-label');
 
         function resizeCanvas() {
-            canvas.width = Math.min(window.innerWidth, 800);
+            canvas.width = Math.min(window.innerWidth, 600);
             canvas.height = window.innerHeight;
+            
+            if (player) {
+                if (player.x > canvas.width) player.x = canvas.width / 2;
+                if (player.y > canvas.height) player.y = canvas.height - 160;
+            }
         }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-
-        // Core Game States
+        
         let gameActive = true;
         let score = 0;
         let currentLevel = 1;
@@ -144,34 +225,66 @@
         let bossActive = false;
         let bossObject = null;
         
-        // Effects & Balance
         let screenShake = 0;
         let slowMoFactor = 1; 
         let levelTransitionActive = false;
         let levelTransitionTimer = 0;
 
-        // Keyboard Setup (8-Way + Space)
-        const keys = {
-            ArrowLeft: false, ArrowRight: false, ArrowUp: false, ArrowDown: false,
-            KeyA: false, KeyD: false, KeyW: false, KeyS: false,
-            Space: false
+        // Unified Input State (Both Keyboard & Touch mapping)
+        const inputs = {
+            left: false, right: false, up: false, down: false, shoot: false
         };
 
+        // Keyboard Event Listeners
         window.addEventListener('keydown', (e) => {
-            if (e.code in keys) {
-                keys[e.code] = true;
-                if(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
-                    e.preventDefault();
-                }
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') inputs.left = true;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') inputs.right = true;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') inputs.up = true;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') inputs.down = true;
+            if (e.code === 'Space') inputs.shoot = true;
+            
+            if(["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) {
+                e.preventDefault();
             }
             if (!gameActive && (e.code === 'Space' || e.code === 'Enter')) resetGame();
         });
 
         window.addEventListener('keyup', (e) => {
-            if (e.code in keys) keys[e.code] = false;
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') inputs.left = false;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') inputs.right = false;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') inputs.up = false;
+            if (e.code === 'ArrowDown' || e.code === 'KeyS') inputs.down = false;
+            if (e.code === 'Space') inputs.shoot = false;
         });
 
-        // Lists
+        // Touch Interaction Mapping Helper function
+        function bindTouchBtn(elementId, inputField) {
+            const btn = document.getElementById(elementId);
+            
+            btn.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                inputs[inputField] = true;
+                if (!gameActive) resetGame();
+            });
+            
+            btn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                inputs[inputField] = false;
+            });
+        }
+
+        // Bind Touch Events to DOM Elements
+        bindTouchBtn('btn-up', 'up');
+        bindTouchBtn('btn-down', 'down');
+        bindTouchBtn('btn-left', 'left');
+        bindTouchBtn('btn-right', 'right');
+        bindTouchBtn('btn-shoot', 'shoot');
+
+        // Global Tap trigger for restarting game over screen easily
+        window.addEventListener('touchstart', (e) => {
+            if (!gameActive) resetGame();
+        });
+
         let lasers = [];
         let bossLasers = [];
         let enemies = [];
@@ -180,35 +293,26 @@
         let stars = [];
         let enemySpawnTimer = 0;
 
-        // Background Stars Setup
-        for (let i = 0; i < 80; i++) {
-            stars.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                size: Math.random() * 2,
-                speed: Math.random() * 0.8 + 0.2 // Slower stars speed
-            });
-        }
-
-        // Player Configurations
         const player = {
-            x: canvas.width / 2,
-            y: canvas.height - 120,
-            width: 36,
-            height: 36,
-            speed: 5.5, // Smooth balanced speed
+            x: 0,
+            y: 0,
+            width: 32,
+            height: 32,
+            speed: 5.0, 
             color: '#00f0ff',
             shootCooldown: 0,
             lives: 3,
             powerUpTimer: 0, 
+            init() {
+                this.x = canvas.width / 2;
+                this.y = canvas.height - 180; // Elevated slightly so fingers don't block
+            },
             update() {
-                // 8-way directional movement
-                if (keys.ArrowLeft || keys.KeyA) this.x -= this.speed;
-                if (keys.ArrowRight || keys.KeyD) this.x += this.speed;
-                if (keys.ArrowUp || keys.KeyW) this.y -= this.speed;
-                if (keys.ArrowDown || keys.KeyS) this.y += this.speed;
+                if (inputs.left) this.x -= this.speed;
+                if (inputs.right) this.x += this.speed;
+                if (inputs.up) this.y -= this.speed;
+                if (inputs.down) this.y += this.speed;
 
-                // Screen boundaries restriction
                 if (this.x < this.width / 2) this.x = this.width / 2;
                 if (this.x > canvas.width - this.width / 2) this.x = canvas.width - this.width / 2;
                 if (this.y < this.height / 2) this.y = this.height / 2;
@@ -216,18 +320,15 @@
 
                 if (this.powerUpTimer > 0) this.powerUpTimer--;
 
-                // Manual Fire with Spacebar
-                if (keys.Space && this.shootCooldown <= 0 && !levelTransitionActive) {
+                if (inputs.shoot && this.shootCooldown <= 0 && !levelTransitionActive) {
                     if (this.powerUpTimer > 0) {
-                        // Triple Shot Animation
-                        lasers.push(new Laser(this.x, this.y - 20, 0));
-                        lasers.push(new Laser(this.x, this.y - 20, -2.5));
-                        lasers.push(new Laser(this.x, this.y - 20, 2.5));
+                        lasers.push(new Laser(this.x, this.y - 15, 0));
+                        lasers.push(new Laser(this.x, this.y - 15, -2.5));
+                        lasers.push(new Laser(this.x, this.y - 15, 2.5));
                     } else {
-                        // Single Shot Default
-                        lasers.push(new Laser(this.x, this.y - 20, 0));
+                        lasers.push(new Laser(this.x, this.y - 15, 0));
                     }
-                    this.shootCooldown = 16; // Shooting delay rate
+                    this.shootCooldown = 15; 
                 } else {
                     this.shootCooldown--;
                 }
@@ -248,16 +349,28 @@
 
                 ctx.fillStyle = '#ffaa00';
                 ctx.beginPath();
-                ctx.moveTo(-6, this.height/2);
+                ctx.moveTo(-5, this.height/2);
                 ctx.lineTo(0, (this.height/2) + (Math.random() * 10 + 3));
-                ctx.lineTo(6, this.height/2);
+                ctx.lineTo(5, this.height/2);
                 ctx.closePath();
                 ctx.fill();
                 ctx.restore();
             }
         };
 
-        // Player Laser Class
+        resizeCanvas();
+        player.init();
+        window.addEventListener('resize', resizeCanvas);
+
+        for (let i = 0; i < 50; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 1.8,
+                speed: Math.random() * 0.6 + 0.2
+            });
+        }
+
         class Laser {
             constructor(x, y, angleX) {
                 this.x = x;
@@ -279,14 +392,13 @@
             }
         }
 
-        // Boss Laser Class
         class BossLaser {
             constructor(x, y, speedX = 0) {
                 this.x = x;
                 this.y = y;
                 this.width = 5;
                 this.height = 14;
-                this.speedY = 4.5; // Balanced speed
+                this.speedY = 4.2; 
                 this.speedX = speedX;
             }
             update() {
@@ -303,14 +415,13 @@
             }
         }
 
-        // Power-Up Item [P] Class
         class PowerUp {
             constructor(x, y) {
                 this.x = x;
                 this.y = y;
                 this.width = 20;
                 this.height = 20;
-                this.speed = 1.8;
+                this.speed = 1.6;
             }
             update() {
                 this.y += this.speed * slowMoFactor;
@@ -333,14 +444,13 @@
             }
         }
 
-        // Normal Enemy (Slower and More Balanced Scaling)
         class Enemy {
             constructor() {
-                this.width = Math.random() * 15 + 20;
+                this.width = Math.random() * 10 + 20;
                 this.height = this.width;
                 this.x = Math.random() * (canvas.width - this.width) + this.width/2;
                 this.y = -this.height;
-                this.speed = Math.random() * 0.8 + 1.2 + (currentLevel * 0.25); // Controlled speed
+                this.speed = Math.random() * 0.7 + 1.1 + (currentLevel * 0.22); 
                 this.color = `hsl(${(currentLevel * 35) % 360}, 90%, 55%)`; 
             }
             update() {
@@ -362,19 +472,18 @@
             }
         }
 
-        // Boss Class with Counter-Fire Attack Mode
         class Boss {
             constructor(level) {
                 this.level = level;
-                this.width = 90 + (level * 8); 
-                this.height = 55 + (level * 4);
+                this.width = 80 + (level * 6); 
+                this.height = 45 + (level * 3);
                 this.x = canvas.width / 2;
                 this.y = -this.height;
                 this.targetY = 110; 
                 this.introMode = true;
-                this.maxHp = 20 + (level * 20); 
+                this.maxHp = 20 + (level * 15); 
                 this.hp = this.maxHp;
-                this.speedX = 1.2 + (level * 0.2); 
+                this.speedX = 1.1 + (level * 0.18); 
                 this.direction = 1;
                 this.hue = (level * 70) % 360;
                 this.fireTimer = 0;
@@ -389,15 +498,13 @@
                         this.direction *= -1;
                     }
 
-                    // Boss fires back mechanism
                     this.fireTimer++;
-                    let attackRate = Math.max(30, 75 - (this.level * 4));
+                    let attackRate = Math.max(35, 80 - (this.level * 4));
                     if (this.fireTimer >= attackRate) {
                         this.fireTimer = 0;
                         if (this.level >= 4) {
-                            // Multiple streams on higher levels
-                            bossLasers.push(new BossLaser(this.x - 20, this.y + this.height/2));
-                            bossLasers.push(new BossLaser(this.x + 20, this.y + this.height/2));
+                            bossLasers.push(new BossLaser(this.x - 18, this.y + this.height/2));
+                            bossLasers.push(new BossLaser(this.x + 18, this.y + this.height/2));
                         } else {
                             bossLasers.push(new BossLaser(this.x, this.y + this.height/2));
                         }
@@ -421,23 +528,22 @@
 
                 ctx.fillStyle = '#ffffff';
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, 10, 0, Math.PI*2);
+                ctx.arc(this.x, this.y, 8, 0, Math.PI*2);
                 ctx.fill();
                 ctx.restore();
             }
         }
 
-        // Particles System
         class Particle {
             constructor(x, y, color, speedMultiplier = 1) {
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.size = Math.random() * 3.5 + 1;
-                this.speedX = (Math.random() - 0.5) * 7 * speedMultiplier;
-                this.speedY = (Math.random() - 0.5) * 7 * speedMultiplier;
+                this.size = Math.random() * 2.5 + 1;
+                this.speedX = (Math.random() - 0.5) * 6 * speedMultiplier;
+                this.speedY = (Math.random() - 0.5) * 6 * speedMultiplier;
                 this.alpha = 1;
-                this.decay = Math.random() * 0.015 + 0.01;
+                this.decay = Math.random() * 0.016 + 0.012;
             }
             update() {
                 this.x += this.speedX * slowMoFactor;
@@ -462,7 +568,7 @@
         }
 
         function triggerBossDeathAnimation(boss) {
-            screenShake = 25; 
+            screenShake = 20; 
             slowMoFactor = 0.15; 
             bossUi.style.display = 'none';
 
@@ -473,16 +579,16 @@
                 let rx = boss.x + (Math.random() - 0.5) * boss.width;
                 let ry = boss.y + (Math.random() - 0.5) * boss.height;
                 
-                triggerExplosion(rx, ry, `hsl(${boss.hue}, 100%, 60%)`, 20, 2);
-                triggerExplosion(rx, ry, '#ffffff', 8, 1.5);
-                screenShake = 12;
+                triggerExplosion(rx, ry, `hsl(${boss.hue}, 100%, 60%)`, 15, 1.8);
+                triggerExplosion(rx, ry, '#ffffff', 6, 1.3);
+                screenShake = 10;
 
                 explosionRepetitions++;
-                if (explosionRepetitions > 8) {
+                if (explosionRepetitions > 7) {
                     clearInterval(interval);
                     
-                    triggerExplosion(boss.x, boss.y, '#ffffff', 70, 3.5);
-                    triggerExplosion(boss.x, boss.y, '#ffaa00', 40, 2.5);
+                    triggerExplosion(boss.x, boss.y, '#ffffff', 60, 3.2);
+                    triggerExplosion(boss.x, boss.y, '#ffaa00', 30, 2.2);
                     
                     slowMoFactor = 1;
                     bossActive = false;
@@ -515,14 +621,14 @@
                 ctx.fillStyle = 'rgba(0,0,0,0.9)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#00f0ff';
-                ctx.font = 'bold 36px sans-serif';
+                ctx.font = 'bold 28px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('GALAXY SAVED!', canvas.width / 2, canvas.height / 2 - 20);
                 ctx.fillStyle = '#fff';
-                ctx.font = '20px sans-serif';
-                ctx.fillText(`Final Score: ${score} | All 10 Bosses Cleared!`, canvas.width / 2, canvas.height / 2 + 30);
-                ctx.font = '14px sans-serif';
-                ctx.fillText('Press Enter or Space to play again', canvas.width / 2, canvas.height / 2 + 80);
+                ctx.font = '16px sans-serif';
+                ctx.fillText(`Final Score: ${score} | All Bosses Beat!`, canvas.width / 2, canvas.height / 2 + 30);
+                ctx.font = '12px sans-serif';
+                ctx.fillText('Tap anywhere to play again', canvas.width / 2, canvas.height / 2 + 80);
             }, 500);
         }
 
@@ -537,8 +643,8 @@
 
         function handlePlayerDamage() {
             player.lives--;
-            screenShake = 20;
-            triggerExplosion(player.x, player.y, '#ff0055', 20, 1.5);
+            screenShake = 18;
+            triggerExplosion(player.x, player.y, '#ff0055', 18, 1.4);
             
             let heartString = "";
             for(let i=0; i<player.lives; i++) heartString += "❤";
@@ -564,33 +670,35 @@
             particles = [];
             powerups = [];
             
-            player.x = canvas.width / 2;
-            player.y = canvas.height - 120;
+            player.init();
             player.lives = 3;
             player.powerUpTimer = 0;
             
+            // Clean inputs trigger state
+            for(let key in inputs) inputs[key] = false;
+
             scoreElement.innerText = score;
             levelElement.innerText = `${currentLevel}/${maxLevels}`;
             killsLeftElement.innerText = `${killsRequiredForBoss} Left`;
-            livesDisplay.innerText = "❤❤❤";
+            livesDisplay.innerText = "❤❤校";
             bossUi.style.display = 'none';
             
             gameActive = true;
             animate();
         }
 
-        // MASTER GAME LOOP
+        // MASTER LOOP
         function animate() {
             if (!gameActive) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#ff2d55';
-                ctx.font = 'bold 40px sans-serif';
+                ctx.font = 'bold 32px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 20);
                 ctx.fillStyle = '#fff';
-                ctx.font = '18px sans-serif';
-                ctx.fillText('Press Space / Enter to Try Again', canvas.width / 2, canvas.height / 2 + 30);
+                ctx.font = '15px sans-serif';
+                ctx.fillText('Tap anywhere to try again', canvas.width / 2, canvas.height / 2 + 20);
                 return;
             }
 
@@ -607,11 +715,10 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Background Stars Drawing
             stars.forEach(star => {
                 star.y += star.speed * slowMoFactor;
                 if (star.y > canvas.height) { star.y = 0; star.x = Math.random() * canvas.width; }
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
                 ctx.fillRect(star.x, star.y, star.size, star.size);
             });
 
@@ -626,7 +733,7 @@
             if (levelTransitionActive) {
                 levelTransitionTimer--;
                 ctx.fillStyle = 'rgba(0, 240, 255, 0.9)';
-                ctx.font = 'italic bold 32px sans-serif';
+                ctx.font = 'italic bold 26px sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(`LEVEL ${currentLevel}`, canvas.width/2, canvas.height/2);
                 if (levelTransitionTimer <= 0) levelTransitionActive = false;
@@ -635,7 +742,6 @@
             player.update();
             player.draw();
 
-            // Player Lasers Physics
             for (let l = lasers.length - 1; l >= 0; l--) {
                 lasers[l].update();
                 lasers[l].draw();
@@ -644,7 +750,6 @@
                 }
             }
 
-            // Boss Lasers Physics
             const pRect = { x: player.x, y: player.y, width: player.width, height: player.height };
             for (let bl = bossLasers.length - 1; bl >= 0; bl--) {
                 bossLasers[bl].update();
@@ -661,14 +766,13 @@
                 }
             }
 
-            // Powerups Mechanics
             for (let pu = powerups.length - 1; pu >= 0; pu--) {
                 powerups[pu].update();
                 powerups[pu].draw();
 
                 if (checkCollision(pRect, powerups[pu])) {
                     powerups.splice(pu, 1);
-                    player.powerUpTimer = 450; // Give triple shot power for some duration
+                    player.powerUpTimer = 450; 
                     score += 50;
                     scoreElement.innerText = score;
                     continue;
@@ -679,7 +783,6 @@
                 }
             }
 
-            // Enemy Spawning Loop
             if (!bossActive && !levelTransitionActive) {
                 if (killsInThisLevel >= killsRequiredForBoss) {
                     bossActive = true;
@@ -689,7 +792,7 @@
                     bossBarFill.style.width = '100%';
                 } else {
                     enemySpawnTimer++;
-                    let targetInterval = Math.max(25, 65 - (currentLevel * 3.5)); 
+                    let targetInterval = Math.max(30, 65 - (currentLevel * 3.5)); 
                     if (enemySpawnTimer >= targetInterval) {
                         enemies.push(new Enemy());
                         enemySpawnTimer = 0;
@@ -697,13 +800,12 @@
                 }
             }
 
-            // Normal Enemy Mechanics
             for (let e = enemies.length - 1; e >= 0; e--) {
                 enemies[e].update();
                 enemies[e].draw();
 
                 if (checkCollision(pRect, enemies[e])) {
-                    triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 12);
+                    triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 10);
                     enemies.splice(e, 1);
                     handlePlayerDamage();
                     continue;
@@ -711,9 +813,8 @@
 
                 for (let l = lasers.length - 1; l >= 0; l--) {
                     if (enemies[e] && checkCollision(lasers[l], enemies[e])) {
-                        triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 10);
+                        triggerExplosion(enemies[e].x, enemies[e].y, enemies[e].color, 8);
                         
-                        // 22% Chance to drop the 'P' item
                         if (Math.random() < 0.22) { 
                             powerups.push(new PowerUp(enemies[e].x, enemies[e].y));
                         }
@@ -732,7 +833,6 @@
                 }
             }
 
-            // Boss Mechanics
             if (bossActive && bossObject) {
                 bossObject.update();
                 bossObject.draw();
@@ -751,7 +851,7 @@
                             scoreElement.innerText = score;
                             screenShake = 3; 
                             
-                            triggerExplosion(lasers[l] ? lasers[l].x : bossObject.x, bossObject.y + bossObject.height/2, '#ffffff', 3);
+                            triggerExplosion(lasers[l] ? lasers[l].x : bossObject.x, bossObject.y + bossObject.height/2, '#ffffff', 2);
 
                             let hpPercent = (bossObject.hp / bossObject.maxHp) * 100;
                             bossBarFill.style.width = `${hpPercent}%`;
@@ -764,7 +864,6 @@
                 }
             }
 
-            // Explosion Particles
             for (let p = particles.length - 1; p >= 0; p--) {
                 particles[p].update();
                 particles[p].draw();
